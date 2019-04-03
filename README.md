@@ -1,1 +1,1 @@
-# Digital-PhotoMonatge---Python
+# Digital-PhotoMonatge (Python)
