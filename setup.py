@@ -1,4 +1,5 @@
-import maxflow
-import numpy as np
+from distutils.core import setup
+from Cython.Build import cythonize
 
+setup(ext_modules=cythonize('photoMontage3.pyx'))
 

@@ -2,14 +2,14 @@ import numpy as np
 import maxflow
 import sys
 
-def color_diff(int[:,:] img_a, int[:, :] img_b, point):
+np.set_printoptions(threshold=sys.maxsize)
+
+def color_diff(int[:,:,:] img_a, int[:, :,:] img_b, point):
     cdef int d = 0
     cdef int c
 
-    cdef int row_index = point[0] + 3 * point[1]
-
     for c in range(3):
-        d += (img_a[row_index, c] - img_b[row_index, c]) ** 2
+        d += (img_a[point[1], point[0], c] - img_b[point[1], point[0], c]) ** 2
 
     return np.sqrt(d)
 
@@ -27,21 +27,29 @@ def solve(photos, mask):
     converged = False
     min_energy = np.inf
 
-    cdef int x,y, u, v, label_u, label_v
+    cdef int x,y, u, v, label_u, label_v, var_idx
     cdef double var_a, var_b, var_c, var_d, delta, energy
 
     while not converged:
         converged = True
 
-        for alpha in range(len(photos)):
+        for alpha in range(4):
+            print("At alpha %d", alpha)
 
             graph.reset()
 
             nodeids = graph.add_grid_nodes(rows * cols)
 
-            sink_edges = np.zeros((rows, cols))
-            sink_edges[(mask != -1) & (mask != alpha)] = np.inf
-            graph.add_grid_tedges(nodeids, 0, sink_edges)
+            # sink_edges = np.zeros((rows, cols))
+            # sink_edges[(mask != -1) & (mask != alpha)] = np.inf
+            # graph.add_grid_tedges(nodeids, 0, sink_edges.flatten())
+            var_idx = 0
+            for y in range(rows):
+                for x in range(cols):
+                    if mask[y, x] != -1 and mask[y, x] != alpha:
+                        graph.add_tedge(var_idx, 0, np.inf)
+                    
+                    var_idx += 1
 
             # u = np.arange(1, rows * (cols -1) + 1).reshape((rows, cols - 1))
             # v = u - 1
@@ -59,8 +67,8 @@ def solve(photos, mask):
                     label_u = assignment[y,x]
                     label_v = assignment[y, x-1]
 
-                    if label_u == label_v == alpha:
-                        break
+                    if label_u == alpha and label_v == alpha:
+                        continue
 
                     var_a = 0.0
                     var_b = color_diff(photos[alpha], photos[label_v], (x,y)) + \
@@ -105,8 +113,8 @@ def solve(photos, mask):
                     label_u = assignment[y,x]
                     label_v = assignment[y - 1, x]
 
-                    if label_u == label_v == alpha:
-                        break
+                    if label_u == alpha and label_v == alpha:
+                        continue
 
                     var_a = 0.0
                     var_b = color_diff(photos[alpha], photos[label_v], (x,y)) + \
@@ -149,7 +157,7 @@ def solve(photos, mask):
                 converged = False
 
                 sgm = graph.get_grid_segments(nodeids)
-                assignment[~sgm] = alpha
+                assignment[~sgm.reshape(assignment.shape)] = alpha
 
 
     return assignment
