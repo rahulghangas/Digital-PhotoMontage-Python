@@ -2,7 +2,6 @@ import numpy as np
 import maxflow
 import sys
 
-np.set_printoptions(threshold=sys.maxsize)
 
 def color_diff(int[:,:,:] img_a, int[:, :,:] img_b, point):
     cdef int d = 0
