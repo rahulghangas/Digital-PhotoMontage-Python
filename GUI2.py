@@ -12,7 +12,8 @@ stop = False
 
 class App(Tkinter.Tk): 
     def __init__(self, width=320, height=240): 
-        super().__init__() 
+        super().__init__()
+        self.lock = threading.Lock()
         self.im_counter = 0
         self.width = width
         self.height = height
@@ -43,17 +44,32 @@ class App(Tkinter.Tk):
             self.labels += [label]
             
         self.button = Tkinter.Button(self, text ="GraphCut", command = self.callback).grid(row = 2, column = 0)
-        
+        self.button = Tkinter.Button(self, text ="Save Images", command = self.save_im_callback).grid(row = 2, column = 1)
+
         self.images_masked = self.images.copy()
         print("put images")
         
     def callback(self):
+        self.lock.acquire()
         z = photoMontage3.solve(np.array(self.images, dtype=np.int32), np.array(self.mask, dtype=np.int32))
-
+        self.lock.release()
         global stop
         stop = True
+        plt.figure()
         plt.imshow(z)
+
+        merged_im = np.zeros(self.images[0].shape, dtype=np.uint8)
+        for i in range(len(self.images)):
+            merged_im[z == i] = self.images[i][z == i]
+        print(merged_im)
+        plt.figure()
+        plt.imshow(merged_im)
+        
         plt.show()
+
+    def save_im_callback(self):
+        for i in range(len(self.images)):
+            cv2.imwrite('./saved_imgs/image_' + str(i) +'.jpg', self.images[i][..., ::-1])
 
     def print_event(self, event):
         if self.im_counter > 3:
@@ -63,7 +79,7 @@ class App(Tkinter.Tk):
                         im = self.images_masked[0]
                         im[event.y-2:event.y+2, event.x-2:event.x+2] = self.colors[0]
                         self.mask[event.y-2:event.y+2, event.x-2:event.x+2] = 0
-                        im = Image.fromarray(im[..., ::-1])
+                        im = Image.fromarray(im)
                         imgtk = ImageTk.PhotoImage(image=im)
                         self.labels[0].configure(image=imgtk)
                         self.labels[0].image = imgtk
@@ -71,7 +87,7 @@ class App(Tkinter.Tk):
                         im = self.images_masked[1]
                         im[event.y-2:event.y+2, event.x-2:event.x+2] = self.colors[1]
                         self.mask[event.y-2:event.y+2, event.x-2:event.x+2] = 1
-                        im = Image.fromarray(im[..., ::-1])
+                        im = Image.fromarray(im)
                         imgtk = ImageTk.PhotoImage(image=im)
                         self.labels[1].configure(image=imgtk)
                         self.labels[1].image = imgtk
@@ -79,7 +95,7 @@ class App(Tkinter.Tk):
                         im = self.images_masked[2]
                         im[event.y-2:event.y+2, event.x-2:event.x+2] = self.colors[2]
                         self.mask[event.y-2:event.y+2, event.x-2:event.x+2] = 2
-                        im = Image.fromarray(im[..., ::-1])
+                        im = Image.fromarray(im)
                         imgtk = ImageTk.PhotoImage(image=im)
                         self.labels[2].configure(image=imgtk)
                         self.labels[2].image = imgtk
@@ -87,7 +103,7 @@ class App(Tkinter.Tk):
                         im = self.images_masked[3]
                         im[event.y-2:event.y+2, event.x-2:event.x+2] = self.colors[3]
                         self.mask[event.y-2:event.y+2, event.x-2:event.x+2] = 3
-                        im = Image.fromarray(im[..., ::-1])
+                        im = Image.fromarray(im)
                         imgtk = ImageTk.PhotoImage(image=im)
                         self.labels[3].configure(image=imgtk)
                         self.labels[3].image = imgtk
@@ -97,9 +113,10 @@ class App(Tkinter.Tk):
             if str(event.type) == 'ButtonPress':
                 global image
                 img = cv2.resize(image, (self.width, self.height))
+                img = img[..., ::-1]
                 self.images[self.im_counter] = img
                 self.images_masked[self.im_counter] = img.copy()
-                im = Image.fromarray(img[..., ::-1])
+                im = Image.fromarray(img)
                 imgtk = ImageTk.PhotoImage(image=im) 
                 self.labels[self.im_counter].configure(image=imgtk)
                 self.labels[self.im_counter].image = imgtk
@@ -124,5 +141,5 @@ class cvRead (threading.Thread):
 thread1 = cvRead(1, "Thread-1", 1)
 thread1.start()
 app = App() 
-app.mainloop() 
-print("Done")
+app.mainloop()
+stop = True
