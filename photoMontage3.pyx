@@ -3,10 +3,9 @@ import maxflow
 import sys
 import math
 cimport cython
+
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
-
-
 cdef inline int color_diff(int[:,:,:] img_a, int[:, :,:] img_b, int x, int y):
     cdef int d = 0
     cdef int c
@@ -15,6 +14,8 @@ cdef inline int color_diff(int[:,:,:] img_a, int[:, :,:] img_b, int x, int y):
         d += (img_a[y, x, c] - img_b[y, x, c]) ** 2
     return math.sqrt(d)
 
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
 def solve(int [:,:,:,:] photos, mask):
     cdef double e = sys.float_info.epsilon
 

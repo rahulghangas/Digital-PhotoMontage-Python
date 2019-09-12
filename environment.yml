@@ -1,0 +1,14 @@
+# run: conda env create --file environment.yml
+name: photoMontage
+dependencies:
+    - python=3.6
+    - opencv
+    - tk
+    - setuptools
+    - cython
+    - numpy
+    - pip
+    - pip:
+        maxflow
+    - pil
+    - matplotlib
