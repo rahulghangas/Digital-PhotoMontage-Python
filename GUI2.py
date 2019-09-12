@@ -14,6 +14,7 @@ class App(Tkinter.Tk):
     def __init__(self, width=320, height=240): 
         super().__init__()
         self.lock = threading.Lock()
+        self.haar_cascade_face = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
         self.im_counter = 0
         self.width = width
         self.height = height
@@ -115,13 +116,22 @@ class App(Tkinter.Tk):
                 img = cv2.resize(image, (self.width, self.height))
                 img = img[..., ::-1]
                 self.images[self.im_counter] = img
-                self.images_masked[self.im_counter] = img.copy()
-                im = Image.fromarray(img)
+                self.images_masked[self.im_counter] = self.encase(img)
+                im = Image.fromarray(self.images_masked[self.im_counter])
                 imgtk = ImageTk.PhotoImage(image=im) 
                 self.labels[self.im_counter].configure(image=imgtk)
                 self.labels[self.im_counter].image = imgtk
                 self.im_counter += 1
     
+    def encase(self, img):
+        img_copy = np.copy(img)
+        faces_rects = self.haar_cascade_face.detectMultiScale(img_copy
+                                                         , scaleFactor = 1.05, minNeighbors = 3);
+        print(faces_rects)
+        for (x,y,w,h) in faces_rects:
+            cv2.rectangle(img_copy, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
+        return img_copy
 
 class cvRead (threading.Thread):
     def __init__(self, threadID, name, counter):
