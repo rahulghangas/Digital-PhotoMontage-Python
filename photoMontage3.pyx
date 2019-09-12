@@ -1,35 +1,44 @@
 import numpy as np
 import maxflow
 import sys
+import math
+cimport cython
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
 
 
-def color_diff(int[:,:,:] img_a, int[:, :,:] img_b, point):
+cdef inline int color_diff(int[:,:,:] img_a, int[:, :,:] img_b, int x, int y):
     cdef int d = 0
     cdef int c
 
     for c in range(3):
-        d += (img_a[point[1], point[0], c] - img_b[point[1], point[0], c]) ** 2
+        d += (img_a[y, x, c] - img_b[y, x, c]) ** 2
+    return math.sqrt(d)
 
-    return np.sqrt(d)
+def solve(int [:,:,:,:] photos, mask):
+    cdef double e = sys.float_info.epsilon
 
-def solve(photos, mask):
-    e = sys.float_info.epsilon
-
-    assignment = np.zeros(mask.shape)
+    assignment = np.zeros(mask.shape, dtype=np.intc)
 
 
     assignment[mask != -1] = mask[ mask != -1]
 
-    rows, cols = mask.shape[0], mask.shape[1]
+    cdef Py_ssize_t rows = mask.shape[0]
+    cdef Py_ssize_t cols = mask.shape[1]
+    cdef int [:,:]mask_view = mask
+    cdef int [:,:]assignment_view
+
     graph = maxflow.Graph[float]()
 
     converged = False
-    min_energy = np.inf
 
     cdef int x,y, u, v, label_u, label_v, var_idx
     cdef double var_a, var_b, var_c, var_d, delta, energy
+    cdef double inf = np.inf
+    cdef double min_energy = inf
 
     while not converged:
+        assignment_view = assignment
         converged = True
 
         for alpha in range(4):
@@ -45,8 +54,8 @@ def solve(photos, mask):
             var_idx = 0
             for y in range(rows):
                 for x in range(cols):
-                    if mask[y, x] != -1 and mask[y, x] != alpha:
-                        graph.add_tedge(var_idx, 0, np.inf)
+                    if mask_view[y, x] != -1 and mask_view[y, x] != alpha:
+                        graph.add_tedge(var_idx, 0, inf)
                     
                     var_idx += 1
 
@@ -63,19 +72,19 @@ def solve(photos, mask):
                     u = y * cols + x
                     v = u - 1
 
-                    label_u = assignment[y,x]
-                    label_v = assignment[y, x-1]
+                    label_u = assignment_view[y,x]
+                    label_v = assignment_view[y, x-1]
 
                     if label_u == alpha and label_v == alpha:
                         continue
 
                     var_a = 0.0
-                    var_b = color_diff(photos[alpha], photos[label_v], (x,y)) + \
-                        color_diff(photos[alpha], photos[label_v], (x-1,y))
-                    var_c = color_diff(photos[label_u], photos[alpha], (x,y)) + \
-                        color_diff(photos[label_u], photos[alpha], (x-1,y))
-                    var_d = color_diff(photos[label_u], photos[label_v], (x,y)) + \
-                        color_diff(photos[label_u], photos[label_v], (x-1,y))
+                    var_b = color_diff(photos[alpha], photos[label_v], x,y) + \
+                        color_diff(photos[alpha], photos[label_v], x-1,y)
+                    var_c = color_diff(photos[label_u], photos[alpha], x,y) + \
+                        color_diff(photos[label_u], photos[alpha], x-1,y)
+                    var_d = color_diff(photos[label_u], photos[label_v], x,y) + \
+                        color_diff(photos[label_u], photos[label_v], x-1,y)
 
                     if var_a + var_d > var_c + var_b:
                         delta = var_a + var_d - var_c -var_b
@@ -109,19 +118,19 @@ def solve(photos, mask):
                     u = y * cols + x
                     v = (y-1) * cols + x
 
-                    label_u = assignment[y,x]
-                    label_v = assignment[y - 1, x]
+                    label_u = assignment_view[y,x]
+                    label_v = assignment_view[y - 1, x]
 
                     if label_u == alpha and label_v == alpha:
                         continue
 
                     var_a = 0.0
-                    var_b = color_diff(photos[alpha], photos[label_v], (x,y)) + \
-                        color_diff(photos[alpha], photos[label_v], (x, y-1))
-                    var_c = color_diff(photos[label_u], photos[alpha], (x,y)) + \
-                        color_diff(photos[label_u], photos[alpha], (x, y-1))
-                    var_d = color_diff(photos[label_u], photos[label_v], (x,y)) + \
-                        color_diff(photos[label_u], photos[label_v], (x, y-1))
+                    var_b = color_diff(photos[alpha], photos[label_v],x,y) + \
+                        color_diff(photos[alpha], photos[label_v], x, y-1)
+                    var_c = color_diff(photos[label_u], photos[alpha], x,y) + \
+                        color_diff(photos[label_u], photos[alpha], x, y-1)
+                    var_d = color_diff(photos[label_u], photos[label_v], x,y) + \
+                        color_diff(photos[label_u], photos[label_v], x, y-1)
 
                     if var_a + var_d > var_c + var_b:
                         delta = var_a + var_d - var_c -var_b
@@ -157,6 +166,5 @@ def solve(photos, mask):
 
                 sgm = graph.get_grid_segments(nodeids)
                 assignment[~sgm.reshape(assignment.shape)] = alpha
-
 
     return assignment
