@@ -9,6 +9,6 @@ dependencies:
     - numpy
     - pip
     - pip:
-        maxflow
-    - pil
+        - PyMaxflow
+    - pillow
     - matplotlib
