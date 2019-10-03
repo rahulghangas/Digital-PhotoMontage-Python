@@ -17,6 +17,8 @@ class App(Tkinter.Tk):
         self.lock = threading.Lock()
         self.haar_cascade_face = cv2.CascadeClassifier('haar_cascade/haarcascade_frontalface_default.xml')
         self.im_counter = 0
+        self.erase_mode = False
+        self.cursors = ("", "plus")
         self.width = width
         self.height = height
 
@@ -47,7 +49,7 @@ class App(Tkinter.Tk):
             self.labels += [label]
 
         self.button = Tkinter.Button(self, text ="GraphCut", command = self.callback).grid(row = 2, column = 0)
-        self.button = Tkinter.Button(self, text ="Save Images", command = self.save_im_callback).grid(row = 2, column = 1)
+        self.button2 = Tkinter.Button(self, text ="Save Images", command = self.save_im_callback).grid(row = 2, column = 1)
 
         self.images_masked = [np.zeros(self.images[0].shape)] * len(self.images)
 
@@ -67,7 +69,7 @@ class App(Tkinter.Tk):
         plt.imshow(merged_im)
         plt.show()
 
-        self.cleanup()
+        # self.cleanup()
 
     def cleanup(self):
         for i in range(len(self.images)):
@@ -94,16 +96,26 @@ class App(Tkinter.Tk):
                         image_index = 2
                     elif str(event.widget) == '.!label4':
                         image_index = 3
-
+                    
                     im = self.images_masked[image_index]
-                    im[event.y-2:event.y+2, event.x-2:event.x+2] = self.colors[image_index]
-                    self.mask[event.y-2:event.y+2, event.x-2:event.x+2] = image_index
+                    if not self.erase_mode:
+                        im[event.y-2:event.y+2, event.x-2:event.x+2] = self.colors[image_index]
+                        self.mask[event.y-2:event.y+2, event.x-2:event.x+2] = image_index
+                    else:
+                        im[event.y-5:event.y+5, event.x-5:event.x+5] = self.images[image_index][event.y-5:event.y+5, event.x-5:event.x+5]
+                        self.mask[event.y-2:event.y+2, event.x-2:event.x+2] = -1
+
                     im = Image.fromarray(im)
                     imgtk = ImageTk.PhotoImage(image=im)
                     self.labels[image_index].configure(image=imgtk)
                     self.labels[image_index].image = imgtk
+
                 except:
                     pass
+            elif str(event.type) == 'KeyPress' and event.char == 'e':
+                self.erase_mode = not self.erase_mode
+                for i in range(4):
+                    self.labels[i].config(cursor=self.cursors[int(self.erase_mode)])
         else:
             if str(event.type) == 'KeyPress' and event.char in ('1', '2', '3', '4'):
                 global image
@@ -121,7 +133,7 @@ class App(Tkinter.Tk):
     def encase(self, img):
         img_copy = np.copy(img)
         faces_rects = self.haar_cascade_face.detectMultiScale(img_copy
-                                                         , scaleFactor = 1.05, minNeighbors = 3);
+                                                         , scaleFactor = 1.05, minNeighbors = 5)
         for (x,y,w,h) in faces_rects:
             cv2.rectangle(img_copy, (int(x + w/5), int(y + h/5)), (int(x + w - w/5), int(y + h - h/5)), (0, 255, 0), 2)
 
