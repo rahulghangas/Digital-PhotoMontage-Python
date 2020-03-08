@@ -33,6 +33,7 @@ class App(Tkinter.Tk):
         self.colors = ((255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0))
         self.color_names = ('RED', 'GREEN', 'BLUE', 'YELLOW')
 
+        self.orig_images = [None] * 4
         self.images = []
         self.font = cv2.FONT_HERSHEY_SIMPLEX
         for i in range(1, 5):
@@ -128,7 +129,7 @@ class App(Tkinter.Tk):
             if self.images_masked[i] is None:
                 continue
             cv2.imwrite(
-                "./saved_imgs/image_" + str(i) + ".jpg", self.images[i][..., ::-1]
+                "./saved_imgs/image_" + str(i) + ".jpg", self.orig_images[i][..., ::-1]
             )
 
     def draw_event(self, event):
@@ -179,6 +180,7 @@ class App(Tkinter.Tk):
         elif str(event.type) == "KeyPress" and event.char in ("1", "2", "3", "4"):
             global image
             image_index = int(event.char) - 1
+            self.orig_images[image_index] = image[..., ::-1]
             img = cv2.resize(image, (self.width, self.height))
             img = img[..., ::-1]
             self.images[image_index] = img
@@ -193,6 +195,7 @@ class App(Tkinter.Tk):
         if not filename or not os.path.exists(filename):
             return
         img = cv2.imread(filename)
+        self.orig_images[image_index] = img
         img = cv2.resize(img, (self.width, self.height))
         img = img[..., ::-1]
         self.images[image_index] = img
