@@ -10,5 +10,6 @@ dependencies:
     - pip=19.2.3
     - pip:
         - PyMaxflow==1.2.12
+        - face_recognition
     - pillow=6.2.0
     - matplotlib
