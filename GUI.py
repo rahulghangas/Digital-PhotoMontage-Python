@@ -3,6 +3,7 @@ import tkinter as Tkinter
 from tkinter import filedialog
 
 import cv2
+import face_recognition
 import matplotlib.pyplot as plt
 import numpy as np
 import PIL.Image as Image
@@ -20,9 +21,6 @@ class App(Tkinter.Tk):
     def __init__(self, width=320, height=240):
         super().__init__()
         self.lock = threading.Lock()
-        self.haar_cascade_face = cv2.CascadeClassifier(
-            "haar_cascade/haarcascade_frontalface_default.xml"
-        )
         self.erase_mode = False
         self.cursors = ("", "plus")
         self.width = width
@@ -207,14 +205,12 @@ class App(Tkinter.Tk):
 
     def encase(self, img):
         img_copy = np.copy(img)
-        faces_rects = self.haar_cascade_face.detectMultiScale(
-            img_copy, scaleFactor=1.05, minNeighbors=5
-        )
-        for (x, y, w, h) in faces_rects:
+        faces_rects = face_recognition.face_locations(img_copy, model="cnn")
+        for (top, right, bottom, left) in faces_rects:
             cv2.rectangle(
                 img_copy,
-                (int(x + w / 5), int(y + h / 5)),
-                (int(x + w - w / 5), int(y + h - h / 5)),
+                (left, top),
+                (right, bottom),
                 (0, 255, 0),
                 2,
             )
