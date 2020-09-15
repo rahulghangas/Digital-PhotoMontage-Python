@@ -10,6 +10,7 @@ import PIL.Image as Image
 import PIL.ImageTk as ImageTk
 from functools import partial
 import os
+from keras.models import load_model
 
 import photoMontage3
 
@@ -25,6 +26,8 @@ class App(Tkinter.Tk):
         self.cursors = ("", "plus")
         self.width = width
         self.height = height
+        self.model = load_model("./emotion_detector_models/model_v6_23.hdf5")
+        self.label_map = {0 : 'Angry', 1 : 'Sad', 2 : 'Neutral', 3 : 'Disgust', 4 : 'Surprise', 5 : 'Fear', 6 : 'Happy'}
 
         self.mask = np.ones((height, width)) * -1
 
@@ -131,7 +134,7 @@ class App(Tkinter.Tk):
             )
 
     def draw_event(self, event):
-        if str(event.type) == "Motion":
+        if str(event.type) == "Button-1":
             try:
                 if str(event.widget) == ".!label":
                     image_index = 0
@@ -141,6 +144,8 @@ class App(Tkinter.Tk):
                     image_index = 2
                 elif str(event.widget) == ".!label4":
                     image_index = 3
+                else:
+                    return
 
                 if self.images_masked[image_index] is None:
                     return
@@ -159,7 +164,7 @@ class App(Tkinter.Tk):
                     ] = self.images[image_index][
                         event.y - 5 : event.y + 5, event.x - 5 : event.x + 5
                     ]
-                    self.mask[event.y - 2 : event.y + 2, event.x - 2 : event.x + 2] = -1
+                    self.mask[event.y - 5 : event.y + 5, event.x - 5 : event.x + 5] = -1
 
                 im = Image.fromarray(im)
                 imgtk = ImageTk.PhotoImage(image=im)
@@ -207,6 +212,17 @@ class App(Tkinter.Tk):
         img_copy = np.copy(img)
         faces_rects = face_recognition.face_locations(img_copy, model="cnn")
         for (top, right, bottom, left) in faces_rects:
+            # top = int(((top + bottom) / 2.0 - (bottom - top) / 2.0) * 2.0)
+            # bottom = int(((top + bottom) / 2.0 + (bottom - top) / 2.0) * 1.5)
+            # left = int(((left + right) / 2.0 - (right - left) / 2.0) * 1.2)
+            # right = int(((left + right) / 2.0 + (right - left) / 2.0) * 1.2)
+
+            face_image = cv2.resize(img[top:bottom, left:right], (48,48))
+            face_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2GRAY)
+            face_image = np.reshape(face_image, [1, face_image.shape[0], face_image.shape[1], 1])
+            predicted_class = np.argmax(self.model.predict(face_image))
+            print(self.label_map[predicted_class])
+
             cv2.rectangle(
                 img_copy,
                 (left, top),
