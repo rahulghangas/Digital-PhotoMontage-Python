@@ -76,13 +76,13 @@ def autoMontage(imgs):
                 encoding2 = fr.face_encodings(face_img_curr, model='large')
                 if encoding1 and encoding2 and fr.compare_faces(encoding1, encoding2[0])[0]:
                     done = True
-                    defer_add_faces_map.append((f, (1, box)))
+                    defer_add_faces_map.append((f, (2, box)))
                     break
 
             if done:
                 break
         else:
-            defer_add_faces_map.append((f, (1, box)))
+            defer_add_faces_map.append((f, (2, box)))
 
     for i in range(len(defer_add_faces_map)):
         key, val = defer_add_faces_map[i]
@@ -108,13 +108,13 @@ def autoMontage(imgs):
                 encoding2 = fr.face_encodings(face_img_curr, model='large')
                 if encoding1 and encoding2 and fr.compare_faces(encoding1, encoding2[0])[0]:
                     done = True
-                    defer_add_faces_map.append((f, (1, box)))
+                    defer_add_faces_map.append((f, (3, box)))
                     break
 
             if done:
                 break
         else:
-            defer_add_faces_map.append((f, (1, box)))
+            defer_add_faces_map.append((f, (3, box)))
 
     for i in range(len(defer_add_faces_map)):
         key, val = defer_add_faces_map[i]
