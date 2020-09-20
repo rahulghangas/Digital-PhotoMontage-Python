@@ -10,7 +10,8 @@ import PIL.Image as Image
 import PIL.ImageTk as ImageTk
 from functools import partial
 import os
-from keras.models import load_model
+import sys
+# from keras.models import load_model
 
 import photoMontage3
 
@@ -26,10 +27,10 @@ class App(Tkinter.Tk):
         self.cursors = ("", "plus")
         self.width = width
         self.height = height
-        self.model = load_model("./emotion_detector_models/model_v6_23.hdf5")
-        self.label_map = {0 : 'Angry', 1 : 'Sad', 2 : 'Neutral', 3 : 'Disgust', 4 : 'Surprise', 5 : 'Fear', 6 : 'Happy'}
+        # self.model = load_model("./emotion_detector_models/model_v6_23.hdf5")
+        # self.label_map = {0 : 'Angry', 5 : 'Sad', 4 : 'Neutral', 1 : 'Disgust', 6 : 'Surprise', 2 : 'Fear', 3 : 'Happy'}
 
-        self.mask = np.ones((height, width)) * -1
+        self.mask = None
 
         self.colors = ((255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0))
         self.color_names = ('RED', 'GREEN', 'BLUE', 'YELLOW')
@@ -103,6 +104,10 @@ class App(Tkinter.Tk):
         plt.figure()
         plt.imshow(z)
 
+        print(z.shape)
+        print(self.mask.shape)
+        print(self.images[0].shape)
+
         merged_im = np.zeros(self.images[0].shape, dtype=np.uint8)
         for i in range(len(self.images)):
             merged_im[z == i] = self.images[i][z == i]
@@ -118,10 +123,30 @@ class App(Tkinter.Tk):
 
     def cleanup(self):
         pass
-        
 
-    def flush(self, event):
-        return "break"
+    def flush(self):
+        self.orig_images = [None] * 4
+        self.images = []
+        self.mask = None
+        for i in range(1, 5):
+            string = "Press " + str(i) + " to capture image"
+
+            empty = cv2.putText(
+                np.zeros((self.height, self.width, 3), dtype=np.uint8),
+                string,
+                (self.height // 3, self.width // 3),
+                self.font,
+                0.5,
+                (255, 0, 0),
+                2,
+                cv2.LINE_AA,
+            )
+            self.images += [empty]
+            im = Image.fromarray(empty)
+            imgtk = ImageTk.PhotoImage(image=im)
+            self.labels[i-1].configure(image=imgtk)
+            self.labels[i-1].image = imgtk
+        self.images_masked = [None] * len(self.images)
 
     def save_im_callback(self):
         if not os.path.exists('./saved_imgs'):
@@ -134,7 +159,7 @@ class App(Tkinter.Tk):
             )
 
     def draw_event(self, event):
-        if str(event.type) == "Button-1":
+        if str(event.type) == "Motion":
             try:
                 if str(event.widget) == ".!label":
                     image_index = 0
@@ -144,35 +169,48 @@ class App(Tkinter.Tk):
                     image_index = 2
                 elif str(event.widget) == ".!label4":
                     image_index = 3
-                else:
-                    return
 
                 if self.images_masked[image_index] is None:
                     return
 
                 im = self.images_masked[image_index]
+                scale_factor_x = im.shape[1] / self.width
+                scale_factor_y = im.shape[0] / self.height
+                x_pixel = event.x * scale_factor_x
+                y_pixel = event.y * scale_factor_y
+                stroke_width = 3 * scale_factor_x
+                stroke_height = 3 * scale_factor_y
+                erase_width = 5 * scale_factor_x
+                erase_height = 5 * scale_factor_y
+
                 if not self.erase_mode:
                     im[
-                        event.y - 2 : event.y + 2, event.x - 2 : event.x + 2
+                        int(y_pixel - stroke_height) : int(y_pixel + stroke_height),
+                        int(x_pixel - stroke_width)  : int(x_pixel + stroke_width)
                     ] = self.colors[image_index]
                     self.mask[
-                        event.y - 2 : event.y + 2, event.x - 2 : event.x + 2
+                        int(y_pixel - stroke_height) : int(y_pixel + stroke_height),
+                        int(x_pixel - stroke_width)  : int(x_pixel + stroke_width)
                     ] = image_index
                 else:
                     im[
-                        event.y - 5 : event.y + 5, event.x - 5 : event.x + 5
+                        int(y_pixel - erase_height) : int(y_pixel + erase_height),
+                        int(x_pixel - erase_width)  : int(x_pixel + erase_width)
                     ] = self.images[image_index][
-                        event.y - 5 : event.y + 5, event.x - 5 : event.x + 5
+                        int(y_pixel - erase_height) : int(y_pixel + erase_height),
+                        int(x_pixel - erase_width)  : int(x_pixel + erase_width)
                     ]
-                    self.mask[event.y - 5 : event.y + 5, event.x - 5 : event.x + 5] = -1
+                    self.mask[int(y_pixel - erase_height) : int(y_pixel + erase_height),
+                              int(x_pixel - erase_width)  : int(x_pixel + erase_width)] = -1
 
-                im = Image.fromarray(im)
+                im = Image.fromarray(cv2.resize(im, (self.width, self.height)))
                 imgtk = ImageTk.PhotoImage(image=im)
                 self.labels[image_index].configure(image=imgtk)
                 self.labels[image_index].image = imgtk
 
             except:
-                pass
+                e = sys.exc_info()[0]
+                print(e)
 
     def key_press_event(self, event):
         if str(event.type) == "KeyPress" and event.char == "e":
@@ -183,12 +221,21 @@ class App(Tkinter.Tk):
         elif str(event.type) == "KeyPress" and event.char in ("1", "2", "3", "4"):
             global image
             image_index = int(event.char) - 1
+
+            if self.mask is None:
+                self.mask = np.ones((image.shape[0], image.shape[1])) * -1
+            elif (image.shape[0], image.shape[1]) != self.mask.shape:
+                print("Images have non-uniform shapes. Resetting images")
+                self.flush()
+            else:
+                self.mask[self.mask == image_index] = -1
+
             self.orig_images[image_index] = image[..., ::-1]
-            img = cv2.resize(image, (self.width, self.height))
-            img = img[..., ::-1]
+            # img = cv2.resize(image, (self.width, self.height))
+            img = image[...,::-1]
             self.images[image_index] = img
             self.images_masked[image_index] = self.encase(img)
-            im = Image.fromarray(self.images_masked[image_index])
+            im = Image.fromarray(cv2.resize(self.images_masked[image_index], (self.width, self.height)))
             imgtk = ImageTk.PhotoImage(image=im)
             self.labels[image_index].configure(image=imgtk)
             self.labels[image_index].image = imgtk
@@ -198,38 +245,41 @@ class App(Tkinter.Tk):
         if not filename or not os.path.exists(filename):
             return
         img = cv2.imread(filename)
-        self.orig_images[image_index] = img
-        img = cv2.resize(img, (self.width, self.height))
+
+        if self.mask is None:
+            self.mask = np.ones((img.shape[0], img.shape[1])) * -1
+        elif (img.shape[0], img.shape[1]) != self.mask.shape:
+            print("Images have non-uniform shapes. Resetting images")
+            self.flush()
+        else:
+            self.mask[self.mask == image_index] = -1
+
+        self.orig_images[image_index] = img[..., ::-1]
+        # img = cv2.resize(img, (self.width, self.height))
         img = img[..., ::-1]
         self.images[image_index] = img
         self.images_masked[image_index] = self.encase(img)
-        im = Image.fromarray(self.images_masked[image_index])
+        im = Image.fromarray(cv2.resize(self.images_masked[image_index], (self.width, self.height)))
         imgtk = ImageTk.PhotoImage(image=im)
         self.labels[image_index].configure(image=imgtk)
         self.labels[image_index].image = imgtk
 
     def encase(self, img):
+        # scale_percent = 100
+        # width = int(img.shape[1] * scale_percent / 100)
+        # height = int(img.shape[0] * scale_percent / 100)
+        # dim = (width, height)
+        # img_copy = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
         img_copy = np.copy(img)
-        faces_rects = face_recognition.face_locations(img_copy, model="cnn")
-        for (top, right, bottom, left) in faces_rects:
-            # top = int(((top + bottom) / 2.0 - (bottom - top) / 2.0) * 2.0)
-            # bottom = int(((top + bottom) / 2.0 + (bottom - top) / 2.0) * 1.5)
-            # left = int(((left + right) / 2.0 - (right - left) / 2.0) * 1.2)
-            # right = int(((left + right) / 2.0 + (right - left) / 2.0) * 1.2)
-
-            face_image = cv2.resize(img[top:bottom, left:right], (48,48))
-            face_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2GRAY)
-            face_image = np.reshape(face_image, [1, face_image.shape[0], face_image.shape[1], 1])
-            predicted_class = np.argmax(self.model.predict(face_image))
-            print(self.label_map[predicted_class])
-
+        bBoxes1 = face_recognition.face_locations(img_copy, model='hog')
+        for bb in bBoxes1:
+            top, right, bottom, left = bb
             cv2.rectangle(
                 img_copy,
                 (left, top),
                 (right, bottom),
                 (0, 255, 0),
-                2,
-            )
+                2)
 
         return img_copy
 
