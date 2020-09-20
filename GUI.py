@@ -102,7 +102,22 @@ class App(Tkinter.Tk):
             button.config(state=Tkinter.DISABLED)
             button.update()
         low_power_mode = True
-        autoMontage.autoMontage(self.images)
+
+        new_masks = autoMontage.autoMontage(self.images)
+        for mask in new_masks:
+            index, bb = mask
+            top, right, bottom, left = bb
+            self.images_masked[index][top:bottom,left:right,:] = self.colors[index]
+            self.mask[top:bottom,left:right] = index
+
+        for index in range(len(self.images_masked)):
+            im = Image.fromarray(cv2.resize(self.images_masked[index], (self.width, self.height)))
+            imgtk = ImageTk.PhotoImage(image=im)
+            self.labels[index].configure(image=imgtk)
+            self.labels[index].image = imgtk
+
+        self.callback()
+
         low_power_mode = False
 
         for button in self.buttons:

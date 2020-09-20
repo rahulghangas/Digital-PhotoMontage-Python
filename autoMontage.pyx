@@ -143,4 +143,4 @@ def autoMontage(imgs):
 
         new_masks.append(info)
 
-    print(new_masks)
+    return new_masks
