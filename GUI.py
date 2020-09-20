@@ -14,6 +14,7 @@ import sys
 # from keras.models import load_model
 
 import photoMontage3
+import autoMontage
 
 image = None
 stop = False
@@ -69,6 +70,9 @@ class App(Tkinter.Tk):
         self.buttons = []
         self.buttons.append(Tkinter.Button(self, text="GraphCut", command=self.callback))
         self.buttons[-1].grid(row=4, column=0)
+        self.buttons.append(Tkinter.Button(self, text="AutoMontage", command=self.callback_automontage))
+        # self.buttons[-1].grid(row=5, column=0)
+        self.buttons[-1].place(relx=0.5, rely=0.95, anchor=Tkinter.CENTER)
         self.buttons.append(Tkinter.Button(
             self, text="Save Images", command=self.save_im_callback
         ))
@@ -92,6 +96,19 @@ class App(Tkinter.Tk):
 
         self.images_masked = [None] * len(self.images)
 
+    def callback_automontage(self):
+        global low_power_mode
+        for button in self.buttons:
+            button.config(state=Tkinter.DISABLED)
+            button.update()
+        low_power_mode = True
+        autoMontage.autoMontage(self.images)
+        low_power_mode = False
+
+        for button in self.buttons:
+            button.config(state=Tkinter.NORMAL)
+            button.update()
+
     def callback(self):
         global low_power_mode
         for button in self.buttons:
@@ -103,10 +120,6 @@ class App(Tkinter.Tk):
         )
         plt.figure()
         plt.imshow(z)
-
-        print(z.shape)
-        print(self.mask.shape)
-        print(self.images[0].shape)
 
         merged_im = np.zeros(self.images[0].shape, dtype=np.uint8)
         for i in range(len(self.images)):
@@ -169,6 +182,8 @@ class App(Tkinter.Tk):
                     image_index = 2
                 elif str(event.widget) == ".!label4":
                     image_index = 3
+                else:
+                    return
 
                 if self.images_masked[image_index] is None:
                     return
@@ -224,9 +239,13 @@ class App(Tkinter.Tk):
 
             if self.mask is None:
                 self.mask = np.ones((image.shape[0], image.shape[1])) * -1
+                for i in range(len(self.images)):
+                    if i != image_index:
+                        self.images[i] = np.zeros(image.shape)
             elif (image.shape[0], image.shape[1]) != self.mask.shape:
                 print("Images have non-uniform shapes. Resetting images")
                 self.flush()
+                self.mask = np.ones((image.shape[0], image.shape[1])) * -1
             else:
                 self.mask[self.mask == image_index] = -1
 
@@ -255,7 +274,6 @@ class App(Tkinter.Tk):
             self.mask[self.mask == image_index] = -1
 
         self.orig_images[image_index] = img[..., ::-1]
-        # img = cv2.resize(img, (self.width, self.height))
         img = img[..., ::-1]
         self.images[image_index] = img
         self.images_masked[image_index] = self.encase(img)
@@ -265,11 +283,6 @@ class App(Tkinter.Tk):
         self.labels[image_index].image = imgtk
 
     def encase(self, img):
-        # scale_percent = 100
-        # width = int(img.shape[1] * scale_percent / 100)
-        # height = int(img.shape[0] * scale_percent / 100)
-        # dim = (width, height)
-        # img_copy = cv2.resize(img, dim, interpolation=cv2.INTER_AREA)
         img_copy = np.copy(img)
         bBoxes1 = face_recognition.face_locations(img_copy, model='hog')
         for bb in bBoxes1:
