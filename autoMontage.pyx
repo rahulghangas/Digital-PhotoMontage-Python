@@ -20,7 +20,7 @@ def autoMontage(imgs):
 
     faces_map = dict()
 
-    cdef int i, j, top, bottom, left, right, top2, bottom2, left2, right2
+    cdef int i, j, f, top, bottom, left, right, top2, bottom2, left2, right2
 
     print("Recognizing people in image 1")
     for i in range(len(boxes_img1)):
@@ -31,7 +31,8 @@ def autoMontage(imgs):
     defer_add_faces_map = []
     for i in range(len(boxes_img2)):
         box = boxes_img2[i]
-        for known_faces in faces_map.values():
+        for f in faces_map:
+            known_faces = faces_map[f]
             done = False
             for j in range(len(known_faces)):
                 face = known_faces[j]
@@ -43,18 +44,27 @@ def autoMontage(imgs):
                 encoding2 = fr.face_encodings(face_img_curr, model='large')
                 if encoding1 and encoding2 and fr.compare_faces(encoding1, encoding2[0])[0]:
                     done = True
-                    known_faces.append((1,box))
+                    defer_add_faces_map.append((f, (1, box)))
                     break
 
             if done:
                 break
         else:
-            faces_map[len(faces_map)] = [(1, box)]
+            defer_add_faces_map.append((f, (1, box)))
+
+    for i in range(len(defer_add_faces_map)):
+        key, val = defer_add_faces_map[i]
+        if key in faces_map:
+            faces_map[key].append(val)
+        else:
+            faces_map[key] = [val]
 
     print("Recognizing people and cross-referencing in image 3")
+    defer_add_faces_map = []
     for i in range(len(boxes_img3)):
         box = boxes_img3[i]
-        for known_faces in faces_map.values():
+        for f in faces_map:
+            known_faces = faces_map[f]
             done = False
             for j in range(len(known_faces)):
                 face = known_faces[j]
@@ -66,18 +76,27 @@ def autoMontage(imgs):
                 encoding2 = fr.face_encodings(face_img_curr, model='large')
                 if encoding1 and encoding2 and fr.compare_faces(encoding1, encoding2[0])[0]:
                     done = True
-                    known_faces.append((2,box))
+                    defer_add_faces_map.append((f, (1, box)))
                     break
 
             if done:
                 break
         else:
-            faces_map[len(faces_map)] = [(2, box)]
+            defer_add_faces_map.append((f, (1, box)))
+
+    for i in range(len(defer_add_faces_map)):
+        key, val = defer_add_faces_map[i]
+        if key in faces_map:
+            faces_map[key].append(val)
+        else:
+            faces_map[key] = [val]
 
     print("Recognizing people and cross-referencing in image 4")
+    defer_add_faces_map = []
     for i in range(len(boxes_img4)):
         box = boxes_img4[i]
-        for known_faces in faces_map.values():
+        for f in faces_map:
+            known_faces = faces_map[f]
             done = False
             for j in range(len(known_faces)):
                 face = known_faces[j]
@@ -89,13 +108,20 @@ def autoMontage(imgs):
                 encoding2 = fr.face_encodings(face_img_curr, model='large')
                 if encoding1 and encoding2 and fr.compare_faces(encoding1, encoding2[0])[0]:
                     done = True
-                    known_faces.append((3,box))
+                    defer_add_faces_map.append((f, (1, box)))
                     break
 
             if done:
                 break
         else:
-            faces_map[len(faces_map)] = [(3, box)]
+            defer_add_faces_map.append((f, (1, box)))
+
+    for i in range(len(defer_add_faces_map)):
+        key, val = defer_add_faces_map[i]
+        if key in faces_map:
+            faces_map[key].append(val)
+        else:
+            faces_map[key] = [val]
 
     print("People recognized and cross referenced. Recognizing emotions")
     emotion_model_path = 'models/_mini_XCEPTION.102-0.66.hdf5'
