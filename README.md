@@ -5,6 +5,7 @@ Grphical user inteface Application to perform manual and automatic graph cut com
 # To install
   - Clone the repo
   - run `conda env create -f environment.yml`
+  - Activate your conda environment using `conda activate photoMontage`
 
 # To run example
   - run `python GUI.py` from your terminal
