@@ -1,6 +1,6 @@
 # Digital-PhotoMonatge (Python)
 
-Grphical user inteface Application to perform manual and automatic graph cut composites of images
+Graphical user interface Application to perform manual and automatic graph cut composites of images
 
 # To install
   - Clone the repo
